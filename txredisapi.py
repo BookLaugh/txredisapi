@@ -34,6 +34,7 @@ import zlib
 import string
 import hashlib
 import random
+import sys
 
 from twisted.internet import defer
 from twisted.internet import protocol
@@ -42,6 +43,11 @@ from twisted.protocols import basic
 from twisted.protocols import policies
 from twisted.python import log
 from twisted.python.failure import Failure
+
+if sys.version_info[0] < 3:
+    from itertools import izip
+else:
+    izip = zip
 
 try:
     import hiredis
@@ -1423,8 +1429,10 @@ class BaseRedisProtocol(LineReceiver, policies.TimeoutMixin):
         """
         Return all the fields and associated values in a hash.
         """
-        f = lambda d: dict(list(zip(d[::2], d[1::2])))
-        return self.execute_command("HGETALL", key, post_proc=f)
+        def post_proc(response):
+            it = iter(response)
+            return dict(izip(it, it))
+        return self.execute_command("HGETALL", key, post_proc=post_proc)
 
     def hscan(self, key, cursor=0, pattern=None, count=None):
         args = self._build_scan_args(cursor, pattern, count)
